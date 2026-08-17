@@ -29,18 +29,19 @@
   },
   "dependencies": {
     "@comunica/types": "^5.0.0",
-    "@comunica/utils-algebra": "^5.0.0",
     "@traqula/algebra-sparql-1-2": "^1.0.0",
     "@traqula/algebra-transformations-1-2": "^1.0.0",
     "@traqula/generator-sparql-1-2": "^1.0.0",
     "@traqula/parser-sparql-1-2": "^1.0.0",
     "eta": "^4.0.0",
+    "imurmurhash": "^0.1.0",
     "rdf-data-factory": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",
     "@rdfjs/types": "^2.0.0",
     "@stylistic/eslint-plugin": "^5.0.0",
+    "@types/imurmurhash": "^0.1.0",
     "@vitest/browser-playwright": "^4.0.0",
     "@vitest/coverage-istanbul": "^4.0.0",
     "asynciterator": "^3.0.0",
