@@ -338,11 +338,11 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
   }
 
   public async askBatched(query: string, sources: string[], bindings: Record<string, RDF.NamedNode | RDF.Literal>[]): Promise<boolean> {
-    return this.executeBatched<boolean>(query, sources, bindings, this.askBuffer, this.executeAsk);
+    return this.executeBatched<boolean>(query, sources, bindings, this.askBuffer, batch => this.executeAsk(batch));
   }
 
   public async selectBatched(query: string, sources: string[], bindings: Record<string, RDF.NamedNode | RDF.Literal>[]): Promise<RDF.Bindings[]> {
-    return this.executeBatched<RDF.Bindings[]>(query, sources, bindings, this.selectBuffer, this.executeSelect);
+    return this.executeBatched<RDF.Bindings[]>(query, sources, bindings, this.selectBuffer, batch => this.executeSelect(batch));
   }
 }
 
