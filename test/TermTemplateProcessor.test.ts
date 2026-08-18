@@ -5,7 +5,7 @@ import { DataFactory } from 'rdf-data-factory';
 import type { BindingsStream, IQueryEngine } from '@comunica/types';
 import { AlgebraFactory } from '@traqula/algebra-transformations-1-2';
 import type { TermTemplate } from '../lib/TermTemplate';
-import { TermTemplateProcessor } from '../lib/TermTemplateProcessor';
+import { QueryBuffer, TermTemplateProcessor } from '../lib/TermTemplateProcessor';
 import { ITermTemplateContext } from '../lib';
 
 describe('TermTemplateProcessor', () => {
@@ -43,6 +43,7 @@ describe('TermTemplateProcessor', () => {
   afterEach(() => {
     vi.resetAllMocks();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe('loadTemplates', () => {
@@ -98,6 +99,16 @@ describe('TermTemplateProcessor', () => {
     });
   });
 
+  describe('bindingsToValues', () => {
+    it('converts bindings array to values clause', () => {
+      const bindings = [{ var1: dataFactory.literal('value1') }];
+      expect(processor.bindingsToValues(bindings)).toEqual(algebraFactory.createValues(
+        [dataFactory.variable('var1')],
+        bindings
+      ));
+    });
+  });
+
   describe('parseOperation', () => {
     it('parses an operation', () => {
       const query = '';
@@ -109,16 +120,6 @@ describe('TermTemplateProcessor', () => {
     it('serializes an operation', () => {
       const operation = algebraFactory.createNop();
       expect(TermTemplateProcessor.serializeOperation(operation)).toBe('');
-    });
-  });
-
-  describe('addBindings', () => {
-    it('adds bindings as values clause to the query', () => {
-      const query = 'SELECT ?s WHERE { ?s ?p ?o }';
-      const bindings = [{ o: dataFactory.namedNode('ex:o') }];
-      expect(processor.addBindings(query, bindings)).toBe(
-        'SELECT ?s WHERE {\n  ?s ?p ?o .\n  VALUES ?o {\n    <ex:o>\n  }\n}'
-      );
     });
   });
 
@@ -252,6 +253,37 @@ describe('TermTemplateProcessor', () => {
         'bindings2'
       ]);
       expect(queryEngine.queryBindings).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('executeBatched', () => {
+    it('executes the query and maps result back to original one', async () => {
+      vi.useFakeTimers();
+      const buffer: QueryBuffer<boolean> = {};
+      const query = 'ASK WHERE { ?s ?p ?o }';
+      const sources = ['urn:source1', 'urn:source2'];
+      const actualResults: Record<string, Promise<boolean>> = {};
+      const expectedResults: Record<string, boolean> = {};
+      const executor = vi.fn().mockImplementation((batchIdentifier: RDF.NamedNode) => {
+        for (const [queryIdentifier, resolutions] of Object.entries(buffer[batchIdentifier.value].resolutions)) {
+          for (const resolution of resolutions) {
+            resolution(expectedResults[queryIdentifier]);
+          }
+        }
+        delete buffer[batchIdentifier.value];
+      });
+      expect(buffer).toEqual({});
+      for (const i of [0, 0, 1, 2, 2, 3, 4, 5, 6]) {
+        const bindings = [{ o: dataFactory.namedNode(`o${i}`) }];
+        const queryIdentifier = processor.generateQueryIdentifier(query, sources, bindings).value;
+        expectedResults[queryIdentifier] = Math.random() < 0.5 ? true : false;
+        actualResults[queryIdentifier] = processor.executeBatched(query, sources, bindings, buffer, executor);
+      }
+      vi.runAllTimers();
+      for (const [queryIdentifier, expectedResult] of Object.entries(expectedResults)) {
+        await expect(actualResults[queryIdentifier]).resolves.toBe(expectedResult);
+      }
+      expect(buffer).toEqual({});
     });
   });
 });
