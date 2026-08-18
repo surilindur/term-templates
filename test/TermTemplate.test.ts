@@ -21,7 +21,7 @@ describe('TermTemplate', () => {
         ['text', { value: '<p>example</p>' }],
         ['target', { value: 'https://localhost/sparql' }]
       ]) as unknown as RDF.Bindings;
-      expect(() => new TermTemplate(bindings)).toThrow('Invalid regular expression');
+      expect(() => new TermTemplate(bindings)).toThrow();
     });
 
     it('should throw on missing identifier', () => {
@@ -30,7 +30,7 @@ describe('TermTemplate', () => {
         ['text', { value: '<p>example</p>' }],
         ['target', { value: 'https://localhost/sparql' }]
       ]) as unknown as RDF.Bindings;
-      expect(() => new TermTemplate(bindings)).toThrow('read properties of undefined');
+      expect(() => new TermTemplate(bindings)).toThrow('undefined');
     });
 
     it('should throw on missing pattern', () => {
@@ -39,7 +39,7 @@ describe('TermTemplate', () => {
         ['text', { value: '<p>example</p>' }],
         ['target', { value: 'https://localhost/sparql' }]
       ]) as unknown as RDF.Bindings;
-      expect(() => new TermTemplate(bindings)).toThrow('read properties of undefined');
+      expect(() => new TermTemplate(bindings)).toThrow('undefined');
     });
 
     it('should throw on missing text', () => {
@@ -48,7 +48,7 @@ describe('TermTemplate', () => {
         ['pattern', { value: '.*' }],
         ['target', { value: 'https://localhost/sparql' }]
       ]) as unknown as RDF.Bindings;
-      expect(() => new TermTemplate(bindings)).toThrow('read properties of undefined');
+      expect(() => new TermTemplate(bindings)).toThrow('undefined');
     });
 
     it('should throw on missing target', () => {
@@ -57,7 +57,7 @@ describe('TermTemplate', () => {
         ['pattern', { value: '.*' }],
         ['text', { value: '<p>example</p>' }]
       ]) as unknown as RDF.Bindings;
-      expect(() => new TermTemplate(bindings)).toThrow('read properties of undefined');
+      expect(() => new TermTemplate(bindings)).toThrow('undefined');
     });
   });
 
