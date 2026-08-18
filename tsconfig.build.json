@@ -5,7 +5,7 @@
       "ES2023",
       "DOM"
     ],
-    "module": "preserve",
+    "module": "esnext",
     "moduleResolution": "bundler",
     "strict": true,
     "declaration": true,
