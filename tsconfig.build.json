@@ -5,6 +5,8 @@
       "ES2023",
       "DOM"
     ],
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "strict": true,
     "declaration": true,
     "sourceMap": true,
