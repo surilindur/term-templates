@@ -140,22 +140,6 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     );
   }
 
-  public addBindings(query: string, bindings: Record<string, RDF.NamedNode | RDF.Literal>[]): string {
-    const operation = TermTemplateProcessor.parseOperation(query);
-
-    const operationWithValues = algebraUtils.mapOperation(operation, {
-      project: {
-        preVisitor: () => ({ shortcut: true, copy: false }),
-        transform: (_copy, op) => this.algebraFactory.createProject(
-          this.algebraFactory.createJoin([op.input, this.bindingsToValues(bindings)]),
-          op.variables
-        )
-      }
-    }) as Algebra.Operation;
-
-    return TermTemplateProcessor.serializeOperation(operationWithValues);
-  }
-
   /**
    * Generate a query identifier that takes into account also the binding values.
    */
@@ -215,16 +199,8 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
           buffer[batchIdentifier.value].rejections[queryIdentifier.value] = [reject];
         }
       } else {
-        const selectOperation = TermTemplateProcessor.parseOperation(query);
-        const selectOperationWithQueryVariable = algebraUtils.mapOperation(selectOperation, {
-          project: {
-            preVisitor: () => ({ shortcut: true, copy: false }),
-            transform: (_copy, op) => this.algebraFactory.createProject(op.input, [...op.variables, this.queryIdentifierVariable])
-          }
-        }) as Algebra.Operation;
-
         buffer[batchIdentifier.value] = {
-          query: TermTemplateProcessor.serializeOperation(selectOperationWithQueryVariable),
+          query,
           sources,
           bindings,
           resolutions: { [queryIdentifier.value]: [resolve] },
@@ -241,9 +217,9 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     return bindingsArray;
   }
 
-  public async executeAsk(batchIdentifier: RDF.NamedNode): Promise<void> {
-    const batch = this.askBuffer[batchIdentifier.value];
-    delete this.askBuffer[batchIdentifier.value];
+  public async executeAsk(buffer: QueryBuffer<boolean>, batchIdentifier: RDF.NamedNode): Promise<void> {
+    const batch = buffer[batchIdentifier.value];
+    delete buffer[batchIdentifier.value];
 
     const askOperation = TermTemplateProcessor.parseOperation(batch.query);
 
@@ -291,13 +267,28 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     }
   }
 
-  public async executeSelect(batchIdentifier: RDF.NamedNode): Promise<void> {
-    const batch = this.selectBuffer[batchIdentifier.value];
-    delete this.selectBuffer[batchIdentifier.value];
+  public async executeSelect(buffer: QueryBuffer<RDF.Bindings[]>, batchIdentifier: RDF.NamedNode): Promise<void> {
+    const batch = buffer[batchIdentifier.value];
+    delete buffer[batchIdentifier.value];
+
+    const selectOperationOriginal = TermTemplateProcessor.parseOperation(batch.query);
+
+    const selectOperation = algebraUtils.mapOperation(selectOperationOriginal, {
+      project: {
+        preVisitor: () => ({ shortcut: true, copy: false }),
+        transform: (_copy, op) => this.algebraFactory.createProject(
+          this.algebraFactory.createJoin([
+            op.input,
+            this.bindingsToValues(batch.bindings)
+          ]),
+          [...op.variables, this.queryIdentifierVariable]
+        )
+      }
+    }) as Algebra.Operation;
 
     try {
-      const queryWithBindings = this.addBindings(batch.query, batch.bindings);
-      const bindingsArray = await this.selectAll(queryWithBindings, batch.sources);
+      const queryString = TermTemplateProcessor.serializeOperation(selectOperation);
+      const bindingsArray = await this.selectAll(queryString, batch.sources);
       const bindingsByQuery: Record<string, RDF.Bindings[]> = {};
 
       for (const bindings of bindingsArray) {
@@ -336,11 +327,11 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
   }
 
   public async askBatched(query: string, sources: string[], bindings: Record<string, RDF.NamedNode | RDF.Literal>[]): Promise<boolean> {
-    return this.executeBatched<boolean>(query, sources, bindings, this.askBuffer, batch => this.executeAsk(batch));
+    return this.executeBatched<boolean>(query, sources, bindings, this.askBuffer, batch => this.executeAsk(this.askBuffer, batch));
   }
 
   public async selectBatched(query: string, sources: string[], bindings: Record<string, RDF.NamedNode | RDF.Literal>[]): Promise<RDF.Bindings[]> {
-    return this.executeBatched<RDF.Bindings[]>(query, sources, bindings, this.selectBuffer, batch => this.executeSelect(batch));
+    return this.executeBatched<RDF.Bindings[]>(query, sources, bindings, this.selectBuffer, batch => this.executeSelect(this.selectBuffer, batch));
   }
 }
 
@@ -373,4 +364,4 @@ interface ITermTemplateProcessorOptions {
   queryIdentifierVariable: string;
 }
 
-export { TermTemplateProcessor, type ITermTemplateProcessorOptions };
+export { TermTemplateProcessor, type ITermTemplateProcessorOptions, type QueryBatch, type QueryBuffer };
