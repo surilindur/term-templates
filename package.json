@@ -1,10 +1,10 @@
 {
-  "name": "@idsm-src/term-templates",
+  "name": "@idsm-src/term-template-renderer",
   "type": "module",
   "private": true,
   "version": "0.1.0",
   "packageManager": "yarn@4.18.0",
-  "description": "Library for generating HTML visualisations of RDF terms using the Comunica query engine and a set of EJS templates.",
+  "description": "Library for rendering RDF terms into HTML visualisations using EJS term templates, the Eta template engine, and Comunica query engine.",
   "license": "AGPL-3.0-only",
   "homepage": "https://github.com/idsm-src/term-templates",
   "main": "lib/index.js",
