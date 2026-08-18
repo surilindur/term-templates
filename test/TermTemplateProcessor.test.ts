@@ -21,7 +21,7 @@ describe('TermTemplateProcessor', () => {
 
   beforeEach(() => {
     queryEngine = {
-      queryBindings: vi.fn().mockImplementation(() => new ArrayIterator([
+      queryBindings: vi.fn().mockResolvedValue(new ArrayIterator([
         new Map<string, RDF.Term>([
           ['template', dataFactory.namedNode('urn:template')],
           ['pattern', dataFactory.literal('.*')],

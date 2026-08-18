@@ -10,8 +10,6 @@
     "declaration": true,
     "sourceMap": true,
     "noImplicitAny": true,
-    "importHelpers": false,
-    "inlineSources": false,
     "removeComments": true,
     "resolveJsonModule": true
   },
