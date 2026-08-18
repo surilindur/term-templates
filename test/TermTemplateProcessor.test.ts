@@ -2,7 +2,7 @@ import * as RDF from '@rdfjs/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArrayIterator } from 'asynciterator';
 import { DataFactory } from 'rdf-data-factory';
-import type { IQueryEngine } from '@comunica/types';
+import type { BindingsStream, IQueryEngine } from '@comunica/types';
 import { AlgebraFactory } from '@traqula/algebra-transformations-1-2';
 import type { TermTemplate } from '../lib/TermTemplate';
 import { TermTemplateProcessor } from '../lib/TermTemplateProcessor';
@@ -50,7 +50,7 @@ describe('TermTemplateProcessor', () => {
       expect(queryEngine.queryBindings).not.toHaveBeenCalled();
       expect(processor.templates.size).toBe(0);
       await expect(processor.loadTemplates()).resolves.not.toThrow();
-      expect(queryEngine.queryBindings).toHaveBeenCalledTimes(1);
+      expect(queryEngine.queryBindings).toHaveBeenCalledOnce();
       expect(processor.templates.size).toBe(1);
     });
 
@@ -75,9 +75,9 @@ describe('TermTemplateProcessor', () => {
         template2,
         template1
       ]);
-      expect(template1.calculateRelevance).toHaveBeenCalledTimes(1);
-      expect(template2.calculateRelevance).toHaveBeenCalledTimes(1);
-      expect(template3.calculateRelevance).toHaveBeenCalledTimes(1);
+      expect(template1.calculateRelevance).toHaveBeenCalledOnce();
+      expect(template2.calculateRelevance).toHaveBeenCalledOnce();
+      expect(template3.calculateRelevance).toHaveBeenCalledOnce();
     });
   });
 
@@ -112,7 +112,7 @@ describe('TermTemplateProcessor', () => {
     });
   });
 
-  describe('addBindingsToQuery', () => {
+  describe('addBindings', () => {
     it('adds bindings as values clause to the query', () => {
       const query = 'SELECT ?s WHERE { ?s ?p ?o }';
       const bindings = [{ o: dataFactory.namedNode('ex:o') }];
@@ -128,7 +128,7 @@ describe('TermTemplateProcessor', () => {
       await expect(processor.visualiseTerm({ value: 'abc' } as unknown as RDF.Term)).resolves.toBe(
         '<pre>{\n  "value": "abc"\n}</pre>'
       );
-      expect(processor.findApplicableTemplates).toHaveBeenCalledTimes(1);
+      expect(processor.findApplicableTemplates).toHaveBeenCalledOnce();
     });
 
     it('visualises the term recursively', async () => {
@@ -150,9 +150,9 @@ describe('TermTemplateProcessor', () => {
       });
       await expect(processor.visualiseTerm('term to visualise' as unknown as RDF.Term)).resolves.toBe('output html');
       expect(processor.findApplicableTemplates).toHaveBeenCalledTimes(2);
-      expect(processor.askBatched).toHaveBeenCalledTimes(1);
-      expect(processor.selectBatched).toHaveBeenCalledTimes(1);
-      expect(TermTemplateProcessor.bindingsToRecords).toHaveBeenCalledTimes(1);
+      expect(processor.askBatched).toHaveBeenCalledOnce();
+      expect(processor.selectBatched).toHaveBeenCalledOnce();
+      expect(TermTemplateProcessor.bindingsToRecords).toHaveBeenCalledOnce();
       expect(TermTemplateProcessor.eta.renderStringAsync).toHaveBeenCalledTimes(2);
     });
 
@@ -165,11 +165,93 @@ describe('TermTemplateProcessor', () => {
       await expect(processor.visualiseTerm('term to visualise' as unknown as RDF.Term)).resolves.toBe(
         '<pre class="error">Error: Template rendering error</pre>'
       );
-      expect(processor.findApplicableTemplates).toHaveBeenCalledTimes(1);
+      expect(processor.findApplicableTemplates).toHaveBeenCalledOnce();
       expect(processor.askBatched).not.toHaveBeenCalled();
       expect(processor.selectBatched).not.toHaveBeenCalled();
       expect(TermTemplateProcessor.bindingsToRecords).not.toHaveBeenCalled();
-      expect(TermTemplateProcessor.eta.renderStringAsync).toHaveBeenCalledTimes(1);
+      expect(TermTemplateProcessor.eta.renderStringAsync).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('generateQueryIdentifier', () => {
+    it('returns the same identifiers for the same query', () => {
+      expect(processor.generateQueryIdentifier('query1', [], []))
+        .toEqual(processor.generateQueryIdentifier('query1', [], []));
+    });
+
+    it('returns the same identifiers for the same query with same bindings', () => {
+      expect(processor.generateQueryIdentifier('query1', [], [{ var1: dataFactory.literal('value1') }, { var1: dataFactory.literal('value2') }]))
+        .toEqual(processor.generateQueryIdentifier('query1', [], [{ var1: dataFactory.literal('value2') }, { var1: dataFactory.literal('value1') }]));
+    });
+
+    it('returns different identifiers for different queries', () => {
+      expect(processor.generateQueryIdentifier('query1', [], []))
+        .not.toEqual(processor.generateQueryIdentifier('query2', [], []));
+    });
+
+    it('returns different identifiers for the same query with different bindings', () => {
+      expect(processor.generateQueryIdentifier('query1', [], []))
+        .not.toEqual(processor.generateQueryIdentifier('query1', [], [{ var1: dataFactory.literal('value1') }]));
+    });
+
+    it('returns different identifiers for the same query with different sources', () => {
+      expect(processor.generateQueryIdentifier('query1', ['source1'], []))
+        .not.toEqual(processor.generateQueryIdentifier('query1', ['source2'], []));
+    });
+  });
+
+  describe('generateQueryBatchIdentifier', () => {
+    it('returns the same identifiers for the same query', () => {
+      expect(processor.generateQueryBatchIdentifier('query1', [], []))
+        .toEqual(processor.generateQueryBatchIdentifier('query1', [], []));
+    });
+
+    it('returns the same identifiers for the same query with different bindings', () => {
+      expect(processor.generateQueryBatchIdentifier('query1', [], [{ var1: dataFactory.literal('value1') }]))
+        .toEqual(processor.generateQueryBatchIdentifier('query1', [], [{ var1: dataFactory.literal('value2') }]));
+    });
+
+    it('returns different identifiers for different queries', () => {
+      expect(processor.generateQueryBatchIdentifier('query1', [], []))
+        .not.toEqual(processor.generateQueryBatchIdentifier('query2', [], []));
+    });
+
+    it('returns different identifiers for the same query with different sources', () => {
+      expect(processor.generateQueryBatchIdentifier('query1', ['source1'], []))
+        .not.toEqual(processor.generateQueryBatchIdentifier('query1', ['source2'], []));
+    });
+  });
+
+  describe('askBatched', () => {
+    it('invokes batched execution', async () => {
+      vi.spyOn(processor, 'executeBatched').mockResolvedValue('result');
+      expect(processor.executeBatched).not.toHaveBeenCalled();
+      await expect(processor.askBatched('query', [], [])).resolves.toBe('result');
+      expect(processor.executeBatched).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('selectBatched', () => {
+    it('invokes batched execution', async () => {
+      vi.spyOn(processor, 'executeBatched').mockResolvedValue('result');
+      expect(processor.executeBatched).not.toHaveBeenCalled();
+      await expect(processor.selectBatched('query', [], [])).resolves.toBe('result');
+      expect(processor.executeBatched).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('selectAll', () => {
+    it('executes a select query and converts output to array', async () => {
+      vi.spyOn(queryEngine, 'queryBindings').mockResolvedValue(new ArrayIterator([
+        'bindings1',
+        'bindings2'
+      ]) as unknown as BindingsStream);
+      expect(queryEngine.queryBindings).not.toHaveBeenCalled();
+      await expect(processor.selectAll('query', [])).resolves.toEqual([
+        'bindings1',
+        'bindings2'
+      ]);
+      expect(queryEngine.queryBindings).toHaveBeenCalledOnce();
     });
   });
 });
