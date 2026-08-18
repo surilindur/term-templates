@@ -6,12 +6,11 @@
       "DOM"
     ],
     "module": "esnext",
-    "moduleResolution": "bundler",
     "strict": true,
     "declaration": true,
     "sourceMap": true,
     "noImplicitAny": true,
-    "importHelpers": true,
+    "importHelpers": false,
     "inlineSources": false,
     "removeComments": true,
     "resolveJsonModule": true
