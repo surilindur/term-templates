@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BROWSERTEST_NODE_VERSION: 24.x
+  DEFAULT_NODE_VERSION: 26.x
+
+jobs:
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.DEFAULT_NODE_VERSION }}
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn run lint
+
+  node:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - 22.x
+          - 24.x
+          - 26.x
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn run build
+      - run: yarn vitest run --coverage --project node
+      - uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: node-${{ matrix.node-version }}
+          parallel: true
+
+  browser:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser:
+          - chromium
+          - firefox
+          - webkit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.BROWSERTEST_NODE_VERSION }}
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn run build
+      - run: yarn playwright install --with-deps ${{ matrix.browser }}
+      - run: yarn vitest run --coverage --project ${{ matrix.browser }}
+      - uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: browser-${{ matrix.browser }}
+          parallel: true
+
+  coveralls:
+    needs:
+      - node
+      - browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+        with:
+          github-token: ${{ secrets.github_token }}
+          parallel-finished: true

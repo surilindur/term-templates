@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "declaration": true,
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "importHelpers": false,
+    "inlineSources": false,
+    "removeComments": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "./lib/*.ts"
+  ],
+  "exclude": [
+    "./lib/*.d.ts"
+  ]
+}
