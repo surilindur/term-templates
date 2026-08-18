@@ -164,7 +164,8 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
       query,
       sources: sources.sort(),
       // Ensure the binding objects always sorted identically
-      bindings: Object.fromEntries(Object.entries(bindings).sort((a, b) => a[0] < b[0] ? -1 : 1))
+      bindings: bindings.map(b => Object.fromEntries(Object.entries(b).sort((t1, t2) => t1[0].localeCompare(t2[0]))))
+        .sort((b1, b2) => JSON.stringify(b1).localeCompare(JSON.stringify(b2)))
     });
     const hash = MurmurHash3(value).result().toString(16);
     return this.dataFactory.namedNode(`urn:query:${hash}`);
@@ -178,7 +179,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
       query,
       sources: sources.sort(),
       // Only considers the keys, because different values could exist for the variables
-      bindings: Object.keys(bindings).sort()
+      bindings: [...new Set(bindings.flatMap(b => Object.keys(b))).values()].sort()
     });
     const hash = MurmurHash3(value).result().toString(16);
     return this.dataFactory.namedNode(`urn:batch:${hash}`);
@@ -234,10 +235,15 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     });
   }
 
+  public async selectAll(query: string, sources: string[]): Promise<RDF.Bindings[]> {
+    const bindingsStream = await this.queryEngine.queryBindings(query, { sources, lenient: true });
+    const bindingsArray = await bindingsStream.toArray();
+    return bindingsArray;
+  }
+
   public async executeAsk(batchIdentifier: RDF.NamedNode): Promise<void> {
     const batch = this.askBuffer[batchIdentifier.value];
     delete this.askBuffer[batchIdentifier.value];
-    console.log('ASK', batch);
 
     const askOperation = TermTemplateProcessor.parseOperation(batch.query);
 
@@ -285,16 +291,9 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     }
   }
 
-  public async selectAll(query: string, sources: string[]): Promise<RDF.Bindings[]> {
-    const bindingsStream = await this.queryEngine.queryBindings(query, { sources, lenient: true });
-    const bindingsArray = await bindingsStream.toArray();
-    return bindingsArray;
-  }
-
   public async executeSelect(batchIdentifier: RDF.NamedNode): Promise<void> {
     const batch = this.selectBuffer[batchIdentifier.value];
     delete this.selectBuffer[batchIdentifier.value];
-    console.log('SELECT', batch);
 
     try {
       const queryWithBindings = this.addBindings(batch.query, batch.bindings);
@@ -302,7 +301,6 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
       const bindingsByQuery: Record<string, RDF.Bindings[]> = {};
 
       for (const bindings of bindingsArray) {
-        console.log('bindings', bindings);
         const queryIdentifier = (bindings.get(this.queryIdentifierVariable) as RDF.NamedNode).value;
         if (bindingsByQuery[queryIdentifier]) {
           bindingsByQuery[queryIdentifier].push(bindings);
