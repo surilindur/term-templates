@@ -26,6 +26,14 @@ describe('TermTemplateProcessor', () => {
           ['template', dataFactory.namedNode('urn:template')],
           ['pattern', dataFactory.literal('.*')],
           ['text', dataFactory.literal('<p>example</p>')],
+          ['priority', dataFactory.literal('10', dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#integer'))],
+          ['target', dataFactory.namedNode('https://localhost/sparql')]
+        ]),
+        new Map<string, RDF.Term>([
+          ['template', dataFactory.namedNode('urn:template')],
+          ['pattern', dataFactory.literal('.*')],
+          ['text', dataFactory.literal('<p>example with lower priority</p>')],
+          ['priority', dataFactory.literal('0', dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#integer'))],
           ['target', dataFactory.namedNode('https://localhost/sparql')]
         ])
       ]))
@@ -141,8 +149,13 @@ describe('TermTemplateProcessor', () => {
         expect(template).toBe('template content');
         expect((data as ITermTemplateContext).term).toBeOneOf(['term to visualise', 'recursive term']);
         if ((data as ITermTemplateContext).term as unknown as string === 'term to visualise') {
+          // Call with and without bindings array
           await expect((data as ITermTemplateContext).queryAsk('', [])).resolves.toBe('ask result');
+          await expect((data as ITermTemplateContext).queryAsk('')).resolves.toBe('ask result');
+          // Call with and without bindings array
           await expect((data as ITermTemplateContext).querySelect('', [])).resolves.toBe('select result');
+          await expect((data as ITermTemplateContext).querySelect('')).resolves.toBe('select result');
+          // Call once, since there is no flexibility in parameters
           await expect((data as ITermTemplateContext).visualiseTerm('recursive term' as unknown as RDF.Term)).resolves.toBe('recursive output html');
           return 'output html';
         } else {
@@ -151,9 +164,9 @@ describe('TermTemplateProcessor', () => {
       });
       await expect(processor.visualiseTerm('term to visualise' as unknown as RDF.Term)).resolves.toBe('output html');
       expect(processor.findApplicableTemplates).toHaveBeenCalledTimes(2);
-      expect(processor.askBatched).toHaveBeenCalledOnce();
-      expect(processor.selectBatched).toHaveBeenCalledOnce();
-      expect(TermTemplateProcessor.bindingsToRecords).toHaveBeenCalledOnce();
+      expect(processor.askBatched).toHaveBeenCalledTimes(2);
+      expect(processor.selectBatched).toHaveBeenCalledTimes(2);
+      expect(TermTemplateProcessor.bindingsToRecords).toHaveBeenCalledTimes(2);
       expect(TermTemplateProcessor.eta.renderStringAsync).toHaveBeenCalledTimes(2);
     });
 
@@ -284,6 +297,117 @@ describe('TermTemplateProcessor', () => {
         await expect(actualResults[queryIdentifier]).resolves.toBe(expectedResult);
       }
       expect(buffer).toEqual({});
+    });
+  });
+
+  describe('executeAsk', () => {
+    let resolveMock: (result: boolean) => void;
+    let rejectMock: (error: unknown) => void;
+
+    const batchIdentifier = dataFactory.namedNode('urn:batch');
+    const queryIdentifier = dataFactory.namedNode('urn:query');
+    const emptyQueryIdentifier = dataFactory.namedNode('urn:empty');
+
+    beforeEach(() => {
+      resolveMock = vi.fn();
+      rejectMock = vi.fn();
+    });
+
+    it('executes a batch of ask queries', async () => {
+      vi.spyOn(processor, 'selectAll').mockResolvedValue([
+        new Map<string, RDF.NamedNode>([
+          ['query', queryIdentifier],
+          ['s', dataFactory.namedNode('ex:s')]
+        ]) as unknown as RDF.Bindings
+      ]);
+      const buffer: QueryBuffer<boolean> = {
+        [batchIdentifier.value]: {
+          bindings: [],
+          query: 'ASK WHERE { ?s ?p ?o }',
+          rejections: { [queryIdentifier.value]: [rejectMock], [emptyQueryIdentifier.value]: [rejectMock] },
+          resolutions: { [queryIdentifier.value]: [resolveMock], [emptyQueryIdentifier.value]: [resolveMock] },
+          sources: []
+        }
+      };
+      await expect(processor.executeAsk(buffer, batchIdentifier)).resolves.not.toThrow();
+      expect(rejectMock).not.toHaveBeenCalled();
+      expect(resolveMock).toHaveBeenCalledTimes(2);
+      expect(resolveMock).toHaveBeenNthCalledWith(1, true);
+      expect(resolveMock).toHaveBeenNthCalledWith(2, false);
+    });
+
+    it('forwards errors to all original reject functions', async () => {
+      vi.spyOn(processor, 'selectAll').mockRejectedValue(new Error('Query error'));
+      const buffer: QueryBuffer<boolean> = {
+        [batchIdentifier.value]: {
+          bindings: [],
+          query: 'ASK WHERE { ?s ?p ?o }',
+          rejections: { [queryIdentifier.value]: [rejectMock] },
+          resolutions: { [queryIdentifier.value]: [resolveMock] },
+          sources: []
+        }
+      };
+      await expect(processor.executeAsk(buffer, batchIdentifier)).rejects.toThrow('Query error');
+      expect(rejectMock).toHaveBeenCalledOnce();
+      expect(resolveMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('executeSelect', () => {
+    let rejectMock: (error: unknown) => void;
+    let resolveMock: (result: RDF.Bindings[]) => void;
+
+    const batchIdentifier = dataFactory.namedNode('urn:batch');
+    const queryIdentifier = dataFactory.namedNode('urn:query');
+    const emptyQueryIdentifier = dataFactory.namedNode('urn:empty');
+
+    beforeEach(() => {
+      rejectMock = vi.fn();
+      resolveMock = vi.fn();
+    });
+
+    it('executes a batch of select queries', async () => {
+      vi.spyOn(processor, 'selectAll').mockResolvedValue([
+        new Map<string, RDF.NamedNode>([
+          ['query', queryIdentifier],
+          ['s', dataFactory.namedNode('ex:s1')]
+        ]) as unknown as RDF.Bindings,
+        new Map<string, RDF.NamedNode>([
+          ['query', queryIdentifier],
+          ['s', dataFactory.namedNode('ex:s2')]
+        ]) as unknown as RDF.Bindings
+      ]);
+      const buffer: QueryBuffer<RDF.Bindings[]> = {
+        [batchIdentifier.value]: {
+          bindings: [],
+          query: 'SELECT ?s WHERE { ?s ?p ?o }',
+          rejections: { [queryIdentifier.value]: [rejectMock], [emptyQueryIdentifier.value]: [rejectMock] },
+          resolutions: { [queryIdentifier.value]: [resolveMock], [emptyQueryIdentifier.value]: [resolveMock] },
+          sources: []
+        }
+      };
+      await expect(processor.executeSelect(buffer, batchIdentifier)).resolves.not.toThrow();
+      expect(rejectMock).not.toHaveBeenCalled();
+      // Both the empty and the non-empty query should have been resolved
+      expect(resolveMock).toHaveBeenCalledTimes(2);
+      // Ensure the empty query was resolved without bindings
+      expect(resolveMock).toHaveBeenNthCalledWith(2, []);
+    });
+
+    it('forwards errors to all original reject functions', async () => {
+      vi.spyOn(processor, 'selectAll').mockRejectedValue(new Error('Query error'));
+      const buffer: QueryBuffer<RDF.Bindings[]> = {
+        [batchIdentifier.value]: {
+          bindings: [],
+          query: 'SELECT ?s WHERE { ?s ?p ?o }',
+          rejections: { [queryIdentifier.value]: [rejectMock], [emptyQueryIdentifier.value]: [rejectMock] },
+          resolutions: { [queryIdentifier.value]: [resolveMock], [emptyQueryIdentifier.value]: [resolveMock] },
+          sources: []
+        }
+      };
+      await expect(processor.executeSelect(buffer, batchIdentifier)).rejects.toThrow('Query error');
+      expect(resolveMock).not.toHaveBeenCalled();
+      expect(rejectMock).toHaveBeenCalledTimes(2);
     });
   });
 });
