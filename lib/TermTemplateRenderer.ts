@@ -21,12 +21,11 @@ type QueryBatch<T> = {
 
 type QueryBuffer<T> = Record<string, QueryBatch<T>>;
 
-class TermTemplateProcessor {
+class TermTemplateRenderer {
   public readonly queryEngine: IQueryEngine;
   public readonly dataFactory: DataFactory;
   public readonly algebraFactory: AlgebraFactory;
 
-  public readonly templateSources: QuerySourceUnidentified[];
   public readonly templates: Map<string, TermTemplate>;
   public readonly selectBuffer: QueryBuffer<RDF.Bindings[]>;
   public readonly askBuffer: QueryBuffer<boolean>;
@@ -37,11 +36,10 @@ class TermTemplateProcessor {
   public static readonly sparqlParser = new Parser();
   public static readonly sparqlGenerator = new Generator();
 
-  public constructor(options: ITermTemplateProcessorOptions) {
+  public constructor(options: ITermTemplateRendererOptions) {
     this.queryEngine = options.queryEngine;
     this.dataFactory = options.dataFactory;
     this.algebraFactory = options.algebraFactory;
-    this.templateSources = options.templateSources;
     this.templates = new Map();
     this.selectBuffer = {};
     this.askBuffer = {};
@@ -50,9 +48,10 @@ class TermTemplateProcessor {
   }
 
   /**
-   * Triggers a template collection from all the configured sources.
+   * Collects all templates from the specified sources.
+   * @param sources The sources to query.
    */
-  public async loadTemplates(): Promise<void> {
+  public async loadTemplates(sources: QuerySourceUnidentified[]): Promise<void> {
     this.templates.clear();
     const templateQuery = `PREFIX schema: <https://schema.org/>
 
@@ -67,7 +66,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
 
     BIND(COALESCE(?order, 0) AS ?priority)
 } ORDER BY ?priority`;
-    const bindingsStream = await this.queryEngine.queryBindings(templateQuery, { sources: this.templateSources });
+    const bindingsStream = await this.queryEngine.queryBindings(templateQuery, { sources });
     for await (const bindings of bindingsStream) {
       const identifier = (bindings.get('template') as RDF.NamedNode | RDF.BlankNode).value;
       if (!this.templates.has(identifier)) {
@@ -77,14 +76,14 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
   }
 
   public static parseOperation(op: string): Algebra.Operation {
-    const parsedOperation = TermTemplateProcessor.sparqlParser.parse(op);
+    const parsedOperation = TermTemplateRenderer.sparqlParser.parse(op);
     const parsedAlgebra = toAlgebra(parsedOperation);
     return parsedAlgebra;
   }
 
   public static serializeOperation(operation: Algebra.Operation): string {
     const operationAst = toAst(operation);
-    const operationString = TermTemplateProcessor.sparqlGenerator.generate(operationAst);
+    const operationString = TermTemplateRenderer.sparqlGenerator.generate(operationAst);
     return operationString;
   }
 
@@ -107,13 +106,13 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
         queryAsk: (query, bindings) => this.askBatched(query, [template.target], bindings ?? []),
         querySelect: async (query, bindings) => {
           const outputBindings = await this.selectBatched(query, [template.target], bindings ?? []);
-          const outputRecords = TermTemplateProcessor.bindingsToRecords(outputBindings);
+          const outputRecords = TermTemplateRenderer.bindingsToRecords(outputBindings);
           return outputRecords;
         },
         visualiseTerm: term => this.visualiseTerm(term)
       };
       try {
-        return await TermTemplateProcessor.eta.renderStringAsync(template.text, templateContext);
+        return await TermTemplateRenderer.eta.renderStringAsync(template.text, templateContext);
       } catch (error: unknown) {
         return `<pre class="error">${error}</pre>`;
       }
@@ -221,7 +220,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     const batch = buffer[batchIdentifier.value];
     delete buffer[batchIdentifier.value];
 
-    const askOperation = TermTemplateProcessor.parseOperation(batch.query);
+    const askOperation = TermTemplateRenderer.parseOperation(batch.query);
 
     const selectOperation = algebraUtils.mapOperation(askOperation, {
       ask: {
@@ -237,7 +236,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     }) as Algebra.Operation;
 
     try {
-      const queryString = TermTemplateProcessor.serializeOperation(selectOperation);
+      const queryString = TermTemplateRenderer.serializeOperation(selectOperation);
       const bindingsArray = await this.selectAll(queryString, batch.sources);
 
       // Report existence to their corresponding queries
@@ -271,7 +270,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     const batch = buffer[batchIdentifier.value];
     delete buffer[batchIdentifier.value];
 
-    const selectOperationOriginal = TermTemplateProcessor.parseOperation(batch.query);
+    const selectOperationOriginal = TermTemplateRenderer.parseOperation(batch.query);
 
     const selectOperation = algebraUtils.mapOperation(selectOperationOriginal, {
       project: {
@@ -287,7 +286,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
     }) as Algebra.Operation;
 
     try {
-      const queryString = TermTemplateProcessor.serializeOperation(selectOperation);
+      const queryString = TermTemplateRenderer.serializeOperation(selectOperation);
       const bindingsArray = await this.selectAll(queryString, batch.sources);
       const bindingsByQuery: Record<string, RDF.Bindings[]> = {};
 
@@ -335,7 +334,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
   }
 }
 
-interface ITermTemplateProcessorOptions {
+interface ITermTemplateRendererOptions {
   /**
    * The query engine to use for template retrieval and within the templates themselves.
    */
@@ -349,10 +348,6 @@ interface ITermTemplateProcessorOptions {
    */
   algebraFactory: AlgebraFactory;
   /**
-   * The sources to retrieve templates from.
-   */
-  templateSources: QuerySourceUnidentified[];
-  /**
    * The window in milliseconds for every query batch.
    */
   batchWindow: number;
@@ -364,4 +359,4 @@ interface ITermTemplateProcessorOptions {
   queryIdentifierVariable: string;
 }
 
-export { TermTemplateProcessor, type ITermTemplateProcessorOptions, type QueryBatch, type QueryBuffer };
+export { TermTemplateRenderer, type ITermTemplateRendererOptions, type QueryBatch, type QueryBuffer };
