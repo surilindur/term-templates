@@ -5,14 +5,11 @@
       "ES2023",
       "DOM"
     ],
-    "module": "preserve",
-    "moduleResolution": "bundler",
+    "module": "esnext",
     "strict": true,
     "declaration": true,
     "sourceMap": true,
     "noImplicitAny": true,
-    "importHelpers": false,
-    "inlineSources": false,
     "removeComments": true,
     "resolveJsonModule": true
   },
