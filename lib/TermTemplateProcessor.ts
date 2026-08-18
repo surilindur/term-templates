@@ -242,7 +242,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
 
       // Report existence to their corresponding queries
       for (const bindings of bindingsArray) {
-        const queryIdentifier = (bindings.get(this.queryIdentifierVariable) as RDF.NamedNode).value;
+        const queryIdentifier = (bindings.get(this.queryIdentifierVariable.value) as RDF.NamedNode).value;
         for (const resolution of batch.resolutions[queryIdentifier]) {
           resolution(true);
         }
@@ -292,7 +292,7 @@ SELECT DISTINCT ?template ?priority ?text ?pattern ?target WHERE {
       const bindingsByQuery: Record<string, RDF.Bindings[]> = {};
 
       for (const bindings of bindingsArray) {
-        const queryIdentifier = (bindings.get(this.queryIdentifierVariable) as RDF.NamedNode).value;
+        const queryIdentifier = (bindings.get(this.queryIdentifierVariable.value) as RDF.NamedNode).value;
         if (bindingsByQuery[queryIdentifier]) {
           bindingsByQuery[queryIdentifier].push(bindings);
         } else {
