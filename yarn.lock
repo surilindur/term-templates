@@ -1083,12 +1083,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"asynciterator@npm:^3.0.0, asynciterator@npm:^3.10.0":
-  version: 3.10.0
-  resolution: "asynciterator@npm:3.10.0"
-  dependencies:
-    tiny-set-immediate: "npm:^1.0.2"
-  checksum: 10/29d4344d06b550c24fb4f8d54d00c4b205ae49ec03c94bf1d1096de639ee68640e9f2000064a98b036f5192f414929aa2af4e3167f3d9956da70ccb530169c41
+"asynciterator@npm:~3.9.0":
+  version: 3.9.0
+  resolution: "asynciterator@npm:3.9.0"
+  checksum: 10/7be3809e91e80369ca6bc056477ed2f8d8813e1c416e46d67729b78b83de844fe5d34bc1116b69251a30c6e31764d8d1007c27d5a948a3b3e3b70c2b16a479bf
   languageName: node
   linkType: hard
 
@@ -2281,13 +2279,6 @@ __metadata:
     minizlib: "npm:^3.1.0"
     yallist: "npm:^5.0.0"
   checksum: 10/129606384b3c895f422aaca48bf316357be6dc7aa35c1066c3f06c28acfff0be5b356e1b0a0be7c53a7a8945534ac06cec6d8e296d170d8a09c8bff67b29300e
-  languageName: node
-  linkType: hard
-
-"tiny-set-immediate@npm:^1.0.2":
-  version: 1.0.2
-  resolution: "tiny-set-immediate@npm:1.0.2"
-  checksum: 10/d229084674ff7de39e44e026f3b7ade18e3f7ae56cc7618f62b79110904c7b8d110f90d16f4192fa517693fb0f10761d4dc636dcfab74b451525d235e73aa2fe
   languageName: node
   linkType: hard
 
