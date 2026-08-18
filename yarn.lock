@@ -1198,9 +1198,9 @@ __metadata:
   linkType: hard
 
 "electron-to-chromium@npm:^1.5.402":
-  version: 1.5.407
-  resolution: "electron-to-chromium@npm:1.5.407"
-  checksum: 10/9c4507ef13786d3e4fe16d04929b662b500ac814b2f09f8bda94858ae0bc9962f9a26bfb00bf519b94724eb97bcdc6409cf40cf1b9b540c3443d8f2850fa066a
+  version: 1.5.408
+  resolution: "electron-to-chromium@npm:1.5.408"
+  checksum: 10/02084c418bb1577f7f768e377c2d9f9c83b718ee272a6122b1cb4913ff7c12888116a24313dd6c642d1c74c41ab1d24adfa14d9649184ea4162920a15e5a5b41
   languageName: node
   linkType: hard
 
@@ -1212,9 +1212,9 @@ __metadata:
   linkType: hard
 
 "es-module-lexer@npm:^2.0.0":
-  version: 2.3.1
-  resolution: "es-module-lexer@npm:2.3.1"
-  checksum: 10/15bd9f6d70ec7f046a308b7fbeb56a1fd4bde09e6a46df0015caee58bd5888fc114029754e922ca68577b761890ac95cc450683424209464530cfe54f69b8566
+  version: 2.3.2
+  resolution: "es-module-lexer@npm:2.3.2"
+  checksum: 10/065246d6e2b2dfea3287650b5800a30326771e0d9d238570e81371d7ae8d53db239bccb2166e272926bba44917da7c66dd7407a5214d17b0af5269005b1fec52
   languageName: node
   linkType: hard
 
