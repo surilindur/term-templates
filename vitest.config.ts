@@ -12,6 +12,11 @@ export default defineConfig({
   build: {
     target: compilerOptions.target
   },
+  resolve: {
+    alias: {
+      asynciterator: 'asynciterator/dist/asynciterator.js'
+    }
+  },
   test: {
     coverage: {
       provider: 'istanbul',
