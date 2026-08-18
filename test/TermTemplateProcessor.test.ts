@@ -194,8 +194,21 @@ describe('TermTemplateProcessor', () => {
     });
 
     it('returns the same identifiers for the same query with same bindings', () => {
-      expect(processor.generateQueryIdentifier('query1', [], [{ var1: dataFactory.literal('value1') }, { var1: dataFactory.literal('value2') }]))
-        .toEqual(processor.generateQueryIdentifier('query1', [], [{ var1: dataFactory.literal('value2') }, { var1: dataFactory.literal('value1') }]));
+      expect(processor.generateQueryIdentifier(
+        'query1',
+        [],
+        [
+          { var1: dataFactory.literal('value1'), var2: dataFactory.literal('value2') },
+          { var2: dataFactory.literal('value2'), var1: dataFactory.literal('value1') }
+        ]))
+        .toEqual(processor.generateQueryIdentifier(
+          'query1',
+          [],
+          [
+            { var1: dataFactory.literal('value1'), var2: dataFactory.literal('value2') },
+            { var2: dataFactory.literal('value2'), var1: dataFactory.literal('value1') }
+          ]
+        ));
     });
 
     it('returns different identifiers for different queries', () => {
@@ -238,19 +251,31 @@ describe('TermTemplateProcessor', () => {
 
   describe('askBatched', () => {
     it('invokes batched execution', async () => {
-      vi.spyOn(processor, 'executeBatched').mockResolvedValue('result');
+      vi.spyOn(processor, 'executeAsk').mockResolvedValue(undefined);
+      vi.spyOn(processor, 'executeBatched').mockImplementation(async (_query, _sources, _bindings, _buffer, executor) => {
+        executor(dataFactory.namedNode('urn:batch'));
+        return 'result';
+      });
+      expect(processor.executeAsk).not.toHaveBeenCalled();
       expect(processor.executeBatched).not.toHaveBeenCalled();
       await expect(processor.askBatched('query', [], [])).resolves.toBe('result');
       expect(processor.executeBatched).toHaveBeenCalledOnce();
+      expect(processor.executeAsk).toHaveBeenCalledOnce();
     });
   });
 
   describe('selectBatched', () => {
     it('invokes batched execution', async () => {
-      vi.spyOn(processor, 'executeBatched').mockResolvedValue('result');
+      vi.spyOn(processor, 'executeSelect').mockResolvedValue(undefined);
+      vi.spyOn(processor, 'executeBatched').mockImplementation(async (_query, _sources, _bindings, _buffer, executor) => {
+        executor(dataFactory.namedNode('urn:batch'));
+        return 'result';
+      });
+      expect(processor.executeSelect).not.toHaveBeenCalled();
       expect(processor.executeBatched).not.toHaveBeenCalled();
       await expect(processor.selectBatched('query', [], [])).resolves.toBe('result');
       expect(processor.executeBatched).toHaveBeenCalledOnce();
+      expect(processor.executeSelect).toHaveBeenCalledOnce();
     });
   });
 
