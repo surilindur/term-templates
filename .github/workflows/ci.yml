@@ -18,7 +18,7 @@ env:
 jobs:
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -30,7 +30,7 @@ jobs:
 
   node:
     needs: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         node-version:
@@ -54,7 +54,7 @@ jobs:
 
   browser:
     needs: lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         browser:
@@ -81,7 +81,7 @@ jobs:
     needs:
       - node
       - browser
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
